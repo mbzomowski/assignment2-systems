@@ -5,10 +5,10 @@ import torch.multiprocessing as mp
 import argparse
 
 
-def setup(rank, world_size):
+def setup(rank, world_size, args):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '29500'
-    dist.init_process_group(backend='nccl', rank=rank, world_size=world_size)
+    dist.init_process_group(backend=args.backend, rank=rank, world_size=world_size)
     torch.cuda.set_device(rank)
 
 
@@ -17,14 +17,10 @@ def cleanup():
 
 
 def distributed_demo(rank, world_size, args):
-    setup(rank, world_size)
-    d = 1024
-    if args.size_tensor is not None:
-        size = args.size_tensor
-        d = parse_size_string(size)
-    d /= 4
-    d = int(d)
-    data = torch.randint(0, 1, (d,), dtype=torch.float32, device=f"cuda:{rank}")
+    setup(rank, world_size, args)
+    size = args.tensor_size
+    d = int(parse_size_string(size) / 4)
+    data = torch.randn(d, dtype=torch.float32, device=f"cuda:{rank}")
     print(f"Rank {rank} data (before all-reduce): {data}")
 
     dist.all_reduce(data)
@@ -60,8 +56,9 @@ def parse_size_string(size_string):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A script that runs distributed communication on a single node")
-    parser.add_argument("--size_tensor", type=str, help="The size of the torch.Tensors to generate")
-    parser.add_argument("--num_tensors", type=int, help="The number of torch.Tensors to generate")
+    parser.add_argument("--tensor_size", type=str, default='1KB', help="The size of the torch.Tensors to generate")
+    parser.add_argument("--num_tensors", type=int, default=2, help="The number of torch.Tensors to generate")
+    parser.add_argument("--backend", type=str, default='nccl', help="nccl or gloo")
 
     args = parser.parse_args()
 
