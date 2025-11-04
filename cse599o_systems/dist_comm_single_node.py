@@ -23,6 +23,7 @@ def distributed_demo(rank, world_size, args):
         size = args.size_tensor
         d = parse_size_string(size)
     d /= 4
+    d = int(d)
     data = torch.randint(0, 1, (d,), dtype=torch.float32, device=f"cuda:{rank}")
     print(f"Rank {rank} data (before all-reduce): {data}")
 
