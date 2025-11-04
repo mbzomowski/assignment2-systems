@@ -67,4 +67,4 @@ if __name__ == "__main__":
     world_size = torch.cuda.device_count()
     if world_size < 2:
         raise RuntimeError("Need at least 2 GPUs")
-    mp.spawn(distributed_demo, args=(world_size,), nprocs=world_size, join=True)
+    mp.spawn(distributed_demo, args=(world_size, args,), nprocs=world_size, join=True)
