@@ -20,31 +20,33 @@ def cleanup():
     dist.destroy_process_group()
 
 
-def warmup(rank, world_size, args):
-    setup(rank, world_size, args)
-    size = args.tensor_size
-    d = int(parse_size_string(size) / 4)
-
-    for r in range(WARMUP_ROUNDS):
-        print("**********  WARMUP  **********")
-        data = torch.randn(d, dtype=torch.float32, device=f"cuda:{rank}")
-        print(f"WARMUP Round {r}: Rank {rank} data (before all-reduce): {data}")
-        dist.all_reduce(data)
-        print(f"WARMUP Round {r}: Rank {rank} data (after all-reduce): {data}")
-
-    cleanup()
-
-
 def distributed_run(rank, world_size, args):
     setup(rank, world_size, args)
     size = args.tensor_size
     d = int(parse_size_string(size) / 4)
     data = torch.randn(d, dtype=torch.float32, device=f"cuda:{rank}")
+    for r in range(WARMUP_ROUNDS):
+        print("**********  WARMUP  **********")
+        print(f"WARMUP Round {r}: Rank {rank} data (before all-reduce): {data}")
+        dist.all_reduce(data)
+        print(f"WARMUP Round {r}: Rank {rank} data (after all-reduce): {data}")
+    torch.cuda.synchronize()
+    t0 = time.time()
     print(f"Rank {rank} data (before all-reduce): {data}")
-
     dist.all_reduce(data)
-
+    torch.cuda.synchronize()
+    t1 = time.time()
     print(f"Rank {rank} data (after all-reduce): {data}")
+    elapsed = t1 - t0
+    t = torch.tensor([elapsed], device=f"cuda:{rank}")
+    dist.all_reduce(t, op=dist.ReduceOp.MAX)
+
+    if rank == 0:
+        print(
+            f"world_size={world_size}, size={size}, "
+            f"avg_all_reduce_max_over_ranks={t.item():.6f}s"
+        )
+
 
     cleanup()
 
@@ -83,10 +85,4 @@ if __name__ == "__main__":
     world_size = torch.cuda.device_count()
     if world_size < 2:
         raise RuntimeError("Need at least 2 GPUs")
-    mp.spawn(warmup, args=(world_size, args,), nprocs=world_size, join=True)
-    torch.cuda.synchronize()
-    start_time = time.time()
     mp.spawn(distributed_run, args=(world_size, args,), nprocs=world_size, join=True)
-    torch.cuda.synchronize()
-    end_time = time.time()
-    print(f"Total time taken: {end_time-start_time}")
