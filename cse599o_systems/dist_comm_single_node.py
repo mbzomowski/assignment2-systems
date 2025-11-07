@@ -26,17 +26,13 @@ def distributed_run(rank, world_size, args):
     d = int(parse_size_string(size) / 4)
     data = torch.randn(d, dtype=torch.float32, device=f"cuda:{rank}")
     for r in range(WARMUP_ROUNDS):
-        print("**********  WARMUP  **********")
-        print(f"WARMUP Round {r}: Rank {rank} data (before all-reduce): {data}")
+        print("**********  WARMUP  **********  ROUND {r}")
         dist.all_reduce(data)
-        print(f"WARMUP Round {r}: Rank {rank} data (after all-reduce): {data}")
     torch.cuda.synchronize()
     t0 = time.time()
-    print(f"Rank {rank} data (before all-reduce): {data}")
     dist.all_reduce(data)
     torch.cuda.synchronize()
     t1 = time.time()
-    print(f"Rank {rank} data (after all-reduce): {data}")
     elapsed = t1 - t0
     t = torch.tensor([elapsed], device=f"cuda:{rank}")
     dist.all_reduce(t, op=dist.ReduceOp.MAX)
@@ -46,7 +42,6 @@ def distributed_run(rank, world_size, args):
             f"world_size={world_size}, size={size}, "
             f"avg_all_reduce_max_over_ranks={t.item():.6f}s"
         )
-
 
     cleanup()
 
