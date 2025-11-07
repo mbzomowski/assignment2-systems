@@ -21,6 +21,7 @@ def cleanup():
 
 
 def warmup(rank, world_size, args):
+    setup(rank, world_size, args)
     size = args.tensor_size
     d = int(parse_size_string(size) / 4)
 
@@ -33,21 +34,14 @@ def warmup(rank, world_size, args):
 
 
 def distributed_run(rank, world_size, args):
-    setup(rank, world_size, args)
-    warmup(rank, world_size, args)
     size = args.tensor_size
     d = int(parse_size_string(size) / 4)
     data = torch.randn(d, dtype=torch.float32, device=f"cuda:{rank}")
     print(f"Rank {rank} data (before all-reduce): {data}")
 
-    start_time = time.time()
     dist.all_reduce(data)
-    if torch.cuda.is_available():
-        torch.cuda.synchronize()
-    end_time = time.time()
 
     print(f"Rank {rank} data (after all-reduce): {data}")
-
     print(f"Time: {end_time-start_time}")
 
     cleanup()
@@ -87,4 +81,10 @@ if __name__ == "__main__":
     world_size = torch.cuda.device_count()
     if world_size < 2:
         raise RuntimeError("Need at least 2 GPUs")
+    mp.spawn(warmup, args=(world_size, args,), nprocs=world_size, join=True)
+    torch.cuda.synchronize()
+    start_time = time.time()
     mp.spawn(distributed_run, args=(world_size, args,), nprocs=world_size, join=True)
+    torch.cuda.synchronize()
+    end_time = time.time()
+    print(f"Total time taken: {end_time-start_time}")
