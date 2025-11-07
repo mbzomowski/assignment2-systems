@@ -3,6 +3,10 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 import argparse
+import time
+
+
+WARMUP_ROUNDS = 5
 
 
 def setup(rank, world_size, args):
@@ -16,15 +20,35 @@ def cleanup():
     dist.destroy_process_group()
 
 
-def distributed_demo(rank, world_size, args):
+def warmup(rank, world_size, args):
+    size = args.tensor_size
+    d = int(parse_size_string(size) / 4)
+
+    print("**********  WARMUP  **********")
+    for r in range(WARMUP_ROUNDS):
+        data = torch.randn(d, dtype=torch.float32, device=f"cuda:{rank}")
+        print(f"Round {r}: Rank {rank} data (before all-reduce): {data}")
+        dist.all_reduce(data)
+        print(f"Round {r}: Rank {rank} data (after all-reduce): {data}")
+
+
+def distributed_run(rank, world_size, args):
     setup(rank, world_size, args)
+    warmup(rank, world_size, args)
     size = args.tensor_size
     d = int(parse_size_string(size) / 4)
     data = torch.randn(d, dtype=torch.float32, device=f"cuda:{rank}")
     print(f"Rank {rank} data (before all-reduce): {data}")
 
+    start_time = time.time()
     dist.all_reduce(data)
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
+    end_time = time.time()
+
     print(f"Rank {rank} data (after all-reduce): {data}")
+
+    print(f"Time: {end_time-start_time}")
 
     cleanup()
 
@@ -35,11 +59,9 @@ def parse_size_string(size_string):
         raise ValueError("Input string cannot be empty.")
 
     multipliers = {
-        'B': 1,
         'KB': 1024,
         'MB': 1024**2,
         'GB': 1024**3,
-        'TB': 1024**4,
     }
 
     for unit, multiplier in multipliers.items():
@@ -65,4 +87,4 @@ if __name__ == "__main__":
     world_size = torch.cuda.device_count()
     if world_size < 2:
         raise RuntimeError("Need at least 2 GPUs")
-    mp.spawn(distributed_demo, args=(world_size, args,), nprocs=world_size, join=True)
+    mp.spawn(distributed_run, args=(world_size, args,), nprocs=world_size, join=True)
