@@ -32,8 +32,11 @@ def warmup(rank, world_size, args):
         dist.all_reduce(data)
         print(f"WARMUP Round {r}: Rank {rank} data (after all-reduce): {data}")
 
+    cleanup()
+
 
 def distributed_run(rank, world_size, args):
+    setup(rank, world_size, args)
     size = args.tensor_size
     d = int(parse_size_string(size) / 4)
     data = torch.randn(d, dtype=torch.float32, device=f"cuda:{rank}")
