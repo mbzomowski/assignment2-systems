@@ -26,7 +26,7 @@ def distributed_run(rank, world_size, args):
     d = int(parse_size_string(size) / 4)
     data = torch.randn(d, dtype=torch.float32, device=f"cuda:{rank}")
     for r in range(WARMUP_ROUNDS):
-        print("**********  WARMUP  **********  ROUND {r}")
+        print(f"**********  WARMUP  **********  ROUND {r}")
         dist.all_reduce(data)
     torch.cuda.synchronize()
     t0 = time.time()
