@@ -25,12 +25,12 @@ def warmup(rank, world_size, args):
     size = args.tensor_size
     d = int(parse_size_string(size) / 4)
 
-    print("**********  WARMUP  **********")
     for r in range(WARMUP_ROUNDS):
+        print("**********  WARMUP  **********")
         data = torch.randn(d, dtype=torch.float32, device=f"cuda:{rank}")
-        print(f"Round {r}: Rank {rank} data (before all-reduce): {data}")
+        print(f"WARMUP Round {r}: Rank {rank} data (before all-reduce): {data}")
         dist.all_reduce(data)
-        print(f"Round {r}: Rank {rank} data (after all-reduce): {data}")
+        print(f"WARMUP Round {r}: Rank {rank} data (after all-reduce): {data}")
     cleanup()
 
 
@@ -44,7 +44,6 @@ def distributed_run(rank, world_size, args):
     dist.all_reduce(data)
 
     print(f"Rank {rank} data (after all-reduce): {data}")
-    print(f"Time: {end_time-start_time}")
 
     cleanup()
 
