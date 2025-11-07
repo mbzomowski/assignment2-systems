@@ -28,6 +28,8 @@ def distributed_run(rank, world_size, args):
     for r in range(WARMUP_ROUNDS):
         print(f"**********  WARMUP  **********  ROUND {r}")
         dist.all_reduce(data)
+
+    dist.barrier()
     torch.cuda.synchronize()
     t0 = time.time()
     dist.all_reduce(data)
