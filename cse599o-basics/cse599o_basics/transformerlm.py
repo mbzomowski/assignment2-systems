@@ -23,15 +23,18 @@ class TransformerLM(nn.Module):
         self.rope_theta = rope_theta
 
         self.embed = Embedding(vocab_size, d_model)
-        self.transformer_layers = []
-        for layer in range(num_layers):
-            self.transformer_layers.append(TransformerBlock(self.d_model, self.num_heads, self.d_ff, self.context_length, self.rope_theta))
+        self.transformer_layers = nn.ModuleList(
+            [
+                TransformerBlock(self.d_model, self.num_heads, self.d_ff, self.context_length, self.rope_theta)
+                for _ in range(num_layers)
+            ]
+        )
         self.norm = RMSNorm(self.d_model)
         self.linear = Linear(self.d_model, self.vocab_size)
 
     def forward(self, x: Int[Tensor, " batch_size sequence_length"]) -> Float[Tensor, " batch_size sequence_length vocab_size"]:
         x = self.embed(x)
-        token_positions = torch.arange(x.shape[-2])
+        token_positions = torch.arange(x.shape[-2], device=x.device)
         for layer in self.transformer_layers:
             x = layer(x, token_positions)
         x = self.norm(x)
