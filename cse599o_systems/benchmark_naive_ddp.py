@@ -157,20 +157,29 @@ def run_transformer_ddp(rank, world_size, data, targets, num_steps, result_queue
     for _ in range(num_steps):
         torch.cuda.synchronize()
         t0 = time.time()
-        gradient_time = 0
-        predictions = model(data_slice)
-        loss = loss_fn(predictions, target_slice)
         optimizer.zero_grad()
+
+        logits = model(data_slice)
+        B, S, V = logits.shape
+        logits_flat = logits.view(B * S, V)
+        targets_flat = target_slice.view(B * S)
+
+        loss = loss_fn(logits_flat, targets_flat)
         loss.backward()
+
+        torch.cuda.synchronize()
+        t1 = time.time()
+
         for p in model.parameters():
             if p.grad is not None:
-                torch.cuda.synchronize()
-                t1 = time.time()
                 dist.all_reduce(p.grad.data, op=dist.ReduceOp.SUM)
-                torch.cuda.synchronize()
-                t2 = time.time()
                 p.grad.data /= world_size
+
+        torch.cuda.synchronize()
+        t2 = time.time()
+
         optimizer.step()
+
         torch.cuda.synchronize()
         t3 = time.time()
         total_time = t3 - t0
