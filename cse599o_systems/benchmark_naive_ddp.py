@@ -176,7 +176,8 @@ def run_transformer_ddp(rank, world_size, data, targets, num_steps, result_queue
         total_time = t3 - t0
         time_frac = (t2 - t1) / total_time
 
-        print(f"\nIteration {_}\nTotal training time: {total_time:.2}\nFraction of time spent on all_reduce: {time_frac:.2}")
+        if rank == 0:
+            print(f"\nIteration {_}\nTotal training time: {total_time:.2}\nFraction of time spent on all_reduce: {time_frac:.2}")
 
     cleanup()
 
@@ -186,8 +187,8 @@ def timing_naive_ddp():
     """Timing benchmark for naive DDP with transformer model."""
     world_size = 2
     num_steps = 5
-    data = torch.randn(10, 10)
-    targets = torch.randn(10, 5)
+    data = torch.randint(0, 1000, (10, 10))
+    targets = torch.randint(0, 1000, (10, 5))
 
     # Set up multiprocessing for DDP
     mp.set_start_method("spawn", force=True)
