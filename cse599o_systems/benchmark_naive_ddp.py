@@ -49,7 +49,7 @@ def run_naive_ddp_worker(rank, world_size, data, targets, num_steps, result_queu
     model = ToyModel().to(device)
     for param in model.parameters():
         dist.broadcast(param.data, src=0)
-    optimizer = AdamW(model.parameters())
+    optimizer = AdamW(model.parameters(), lr=1e-3, weight_decay=0.01, betas=(0.9, 0.999), eps=1e-8)
     loss_fn = torch.nn.MSELoss()
 
     split_size = data.shape[0] // world_size
@@ -58,55 +58,47 @@ def run_naive_ddp_worker(rank, world_size, data, targets, num_steps, result_queu
     split_targets = torch.split(targets, split_size, dim=0)
     target_slice = split_targets[rank].to(device)
 
-    for _ in num_steps:
+    for _ in range(num_steps):
         predictions = model(data_slice)
         loss = loss_fn(predictions, target_slice)
         optimizer.zero_grad()
         loss.backward()
         for p in model.parameters():
-            dist.all_reduce(p, op=dist.ReduceOp.MEAN)
+            if p.grad is not None:
+                dist.all_reduce(p.grad.data, op=dist.ReduceOp.SUM)
+                p.grad.data /= world_size
         optimizer.step()
 
     if rank == 0:
-        # TODO: Collect and return the model state from rank 0
-        result_queue.put({model.state_dict()})  # Replace with actual model state
+        # move state dict to CPU before sending through Manager queue
+        cpu_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+        result_queue.put(cpu_state)
 
     cleanup()
 
 
-def run_single_worker(rank, world_size, data, targets, num_steps, result_queue, seed):
-    setup(rank, world_size)
+def run_baseline(data, targets, num_steps, seed):
+    """Run single-process baseline for comparison."""
+    device = torch.device("cuda:0")
 
-    device = torch.device(f"cuda:{rank}")
     torch.manual_seed(seed)
     model = ToyModel().to(device)
-    optimizer = AdamW(model.parameters())
+    optimizer = AdamW(model.parameters(), lr=1e-3, weight_decay=0.01, betas=(0.9, 0.999), eps=1e-8)
+
     loss_fn = torch.nn.MSELoss()
 
-    for _ in num_steps:
+    data = data.to(device)
+    targets = targets.to(device)
+
+    for _ in range(num_steps):
         predictions = model(data)
         loss = loss_fn(predictions, targets)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-    result_queue.put({model.state_dict()})
-
-    cleanup()
-
-
-# You can change the function and variable names as needed.
-def run_baseline(data, targets, num_steps, seed):
-    """Run single-process baseline for comparison."""
-    manager = mp.Manager()
-    result_queue = manager.Queue()
-    mp.spawn(
-        run_single_worker,
-        args=(1, data, targets, num_steps, result_queue),
-        nprocs=1,
-        join=True,
-    )
-    return {result_queue.get()}  # Replace with actual model state
+    # return CPU copy of the state dict for easy comparison
+    return {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
 
 
 # You can change the function and variable names as needed.
@@ -114,8 +106,8 @@ def verify_naive_ddp():
     """Benchmark and verify naive DDP."""
     world_size = 2
     num_steps = 5
-    data = torch.randn(10, 5)
-    targets = torch.randn(5)
+    data = torch.randn(10, 10)
+    targets = torch.randn(10, 5)
     seed = 1234
 
     # Run baseline
