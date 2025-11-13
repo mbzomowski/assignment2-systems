@@ -15,9 +15,9 @@ class MultiheadSelfAttention(nn.Module):
         assert self.d_k.is_integer()
         self.d_k = int(self.d_k)
 
-        self.q_proj_weight = nn.Parameter(torch.randn(self.model, self.d_model))
-        self.k_proj_weight = nn.Parameter(torch.randn(self.model, self.d_model))
-        self.v_proj_weight = nn.Parameter(torch.randn(self.model, self.d_model))
+        self.q_proj_weight = nn.Parameter(torch.randn(self.d_model, self.d_model))
+        self.k_proj_weight = nn.Parameter(torch.randn(self.d_model, self.d_model))
+        self.v_proj_weight = nn.Parameter(torch.randn(self.d_model, self.d_model))
         self.o_proj_weight = nn.Parameter(torch.randn(self.d_model, self.d_model))
 
         self.max_seq_len = max_seq_len
