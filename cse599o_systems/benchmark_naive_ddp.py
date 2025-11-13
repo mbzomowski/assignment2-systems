@@ -52,7 +52,7 @@ def run_naive_ddp_worker(rank, world_size, data, targets, num_steps, result_queu
     for param in model.parameters():
         dist.broadcast(param.data, src=0)
     optimizer = AdamW(model.parameters(), lr=1e-3, weight_decay=0.01, betas=(0.9, 0.999), eps=1e-8)
-    loss_fn = torch.nn.CrossEntropyLoss()
+    loss_fn = torch.nn.MSELoss()
 
     split_size = data.shape[0] // world_size
     split_data = torch.split(data, split_size, dim=0)
@@ -144,7 +144,7 @@ def run_transformer_ddp(rank, world_size, data, targets, num_steps, result_queue
     for param in model.parameters():
         dist.broadcast(param.data, src=0)
     optimizer = AdamW(model.parameters(), lr=1e-3, weight_decay=0.01, betas=(0.9, 0.999), eps=1e-8)
-    loss_fn = torch.nn.MSELoss()
+    loss_fn = torch.nn.CrossEntropyLoss()
 
     split_size = data.shape[0] // world_size
     split_data = torch.split(data, split_size, dim=0)
@@ -188,7 +188,7 @@ def timing_naive_ddp():
     world_size = 2
     num_steps = 5
     data = torch.randint(0, 1000, (10, 10))
-    targets = torch.randint(0, 1000, (10, 10))
+    targets = torch.randint(0, 1000, (10,))
 
     # Set up multiprocessing for DDP
     mp.set_start_method("spawn", force=True)
