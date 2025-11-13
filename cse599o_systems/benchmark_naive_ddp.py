@@ -197,7 +197,7 @@ def timing_naive_ddp():
     world_size = 2
     num_steps = 5
     data = torch.randint(0, 1000, (10, 10))
-    targets = torch.randint(0, 1000, (10,))
+    targets = torch.randint(0, 1000, (10, 10))
 
     # Set up multiprocessing for DDP
     mp.set_start_method("spawn", force=True)
