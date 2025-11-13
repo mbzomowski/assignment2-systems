@@ -15,20 +15,10 @@ class MultiheadSelfAttention(nn.Module):
         assert self.d_k.is_integer()
         self.d_k = int(self.d_k)
 
-        self.q_proj_weight = Float[Tensor, " d_k d_in"]
-        self.k_proj_weight = Float[Tensor, " d_k d_in"]
-        self.v_proj_weight = Float[Tensor, " d_k d_in"]
-        self.o_proj_weight = Float[Tensor, " d_model d_k"]
-
-        self.q_proj_weight = nn.Parameter(torch.empty(self.d_k, self.d_model))
-        self.k_proj_weight = nn.Parameter(torch.empty(self.d_k, self.d_model))
-        self.v_proj_weight = nn.Parameter(torch.empty(self.d_k, self.d_model))
-        self.o_proj_weight = nn.Parameter(torch.empty(self.d_model, self.d_k))
-
-        nn.init.xavier_uniform_(self.q_proj_weight)
-        nn.init.xavier_uniform_(self.k_proj_weight)
-        nn.init.xavier_uniform_(self.v_proj_weight)
-        nn.init.xavier_uniform_(self.o_proj_weight)
+        self.q_proj_weight = nn.Parameter(torch.randn(self.model, self.d_model))
+        self.k_proj_weight = nn.Parameter(torch.randn(self.model, self.d_model))
+        self.v_proj_weight = nn.Parameter(torch.randn(self.model, self.d_model))
+        self.o_proj_weight = nn.Parameter(torch.randn(self.d_model, self.d_model))
 
         self.max_seq_len = max_seq_len
         self.theta = theta
