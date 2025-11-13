@@ -13,7 +13,7 @@ class SwiGLU(nn.Module):
         self.d_model = d_model
         self.d_ff = d_ff
 
-        self.w1 = Linear(self.d_ff, self.d_model)
+        self.w1 = Linear(self.d_model, self.d_ff)
         self.w2 = Linear(self.d_model, self.d_ff)
         self.w3 = Linear(self.d_ff, self.d_model)
 
