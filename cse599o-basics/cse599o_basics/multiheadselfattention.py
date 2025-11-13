@@ -20,6 +20,11 @@ class MultiheadSelfAttention(nn.Module):
         self.v_proj_weight = Float[Tensor, " d_k d_in"]
         self.o_proj_weight = Float[Tensor, " d_model d_k"]
 
+        self.q_proj_weight = nn.init.trunc_normal_(self.q_project_weight)
+        self.k_proj_weight = nn.init.trunc_normal_(self.k_project_weight)
+        self.v_proj_weight = nn.init.trunc_normal_(self.v_project_weight)
+        self.o_proj_weight = nn.init.trunc_normal_(self.o_project_weight)
+
         self.max_seq_len = max_seq_len
         self.theta = theta
         self.rot = None
