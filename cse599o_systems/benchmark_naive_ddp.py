@@ -186,7 +186,7 @@ def run_transformer_ddp(rank, world_size, data, targets, num_steps, result_queue
         time_frac = (t2 - t1) / total_time
 
         if rank == 0:
-            print(f"\nIteration {_}\nTotal training time: {total_time:.2}\nFraction of time spent on all_reduce: {time_frac:.2}")
+            print(f"\nIteration {_}\nTotal training time: {total_time:.5}\nFraction of time spent on all_reduce: {time_frac:.5}")
 
     cleanup()
 
