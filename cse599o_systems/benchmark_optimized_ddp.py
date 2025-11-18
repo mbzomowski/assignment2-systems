@@ -19,6 +19,7 @@
 # -------------------------------------------------------------
 
 import argparse
+import time
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -51,7 +52,6 @@ def run_naive(model, data, optimizer, num_iters, num_warmup, iteration_times, co
 # You can change the function and variable names as needed.
 def run_flat(model, data, optimizer, num_iters, num_warmup, iteration_times, comm_times):
     """All-reduce a single flattened gradient tensor."""
-    # TODO:
     def run_flat_worker(rank, model, data, optimizer, num_iters, num_warmup, iteration_times, comm_times):
         setup(rank, world_size)
 
@@ -60,8 +60,71 @@ def run_flat(model, data, optimizer, num_iters, num_warmup, iteration_times, com
         inputs, targets = data
         inputs = inputs.to(device)
         targets = targets.to(device)
+        loss_fn = torch.nn.CrossEntropyLoss()
 
+        split_size = inputs.shape[0] // world_size
+        split_data = torch.split(inputs, split_size, dim=0)
+        input_slice = split_data[rank].to(device)
+        split_targets = torch.split(targets, split_size, dim=0)
+        target_slice = split_targets[rank].to(device)
 
+        dist.barrier()
+
+        for _ in range(num_iters):
+            torch.cuda.synchronize()
+            t0 = time.time()
+            optimizer.zero_grad()
+
+            logits = model(input_slice)
+            B, S, V = logits.shape
+            logits_flat = logits.view(B * S, V)
+            targets_flat = target_slice.view(B * S)
+
+            loss = loss_fn(logits_flat, targets_flat)
+            loss.backward()
+
+            torch.cuda.synchronize()
+            t1 = time.time()
+
+            grads = []
+            shapes = []
+            sizes = []
+            for p in model.parameters():
+                if p.grad is not None:
+                    shapes.append(p.grad.data.size())
+                    sizes.append(p.grad.data.numel())
+                    grads.append(p.grad.data.view(-1))
+                else:
+                    shapes.append(0)
+                    sizes.append(0)
+                    grads.append(torch.empty())
+            flattened_tensors = torch.cat(grads, dim=0).to(device)
+            dist.all_reduce(flattened_tensors, op=dist.ReduceOp.SUM)
+            flattened_tensors /= world_size
+
+            for p, sh, sz in zip(model.parameters(), shapes, sizes):
+                size = sz.pop(0)
+                shape = sh.pop(0)
+                if p.grad is not None:
+                    t = flattened_tensors[:size].view(shape)
+                    p.grad.data = t
+                    flattened_tensors = flattened_tensors[size:]
+                else:
+                    assert size == 0
+                    assert shape == 0
+
+            torch.cuda.synchronize()
+            t2 = time.time()
+
+            optimizer.step()
+
+            torch.cuda.synchronize()
+            t3 = time.time()
+            total_time = t3 - t0
+            time_frac = (t2 - t1) / total_time
+
+            if rank == 0:
+                print(f"\nIteration {_}\nTotal training time: {total_time:.5}\nFraction of time spent on all_reduce: {time_frac:.5}")
 
     world_size = 2
     mp.spawn(
