@@ -83,7 +83,7 @@ def run_flat_worker(rank, model, data, optimizer, num_iters, num_warmup, iterati
         for p, sh, sz in zip(model.parameters(), shapes, sizes):
             if p.grad is not None:
                 t = flattened_tensors[:sz].view(sh)
-                p.grad.data = t.detatch().clone()
+                p.grad.data = t.detach().clone()
                 flattened_tensors = flattened_tensors[sz:]
             else:
                 assert sz == 0
@@ -102,7 +102,7 @@ def run_flat_worker(rank, model, data, optimizer, num_iters, num_warmup, iterati
         if rank == 0:
             print(f"\nIteration {_}\nTotal training time: {total_time:.5}\nFraction of time spent on all_reduce: {time_frac:.5}")
 
-        cleanup()
+    cleanup()
 
 
 def cleanup():
@@ -113,8 +113,8 @@ def cleanup():
 def setup(rank, world_size):
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = "29500"
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
     torch.cuda.set_device(rank)
+    dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
 # ============================================================
 # (0) Naive DDP
