@@ -19,6 +19,7 @@
 # -------------------------------------------------------------
 
 import argparse
+import os
 import time
 import torch
 import torch.distributed as dist
@@ -102,6 +103,12 @@ def run_flat_worker(rank, model, data, optimizer, num_iters, num_warmup, iterati
 
         if rank == 0:
             print(f"\nIteration {_}\nTotal training time: {total_time:.5}\nFraction of time spent on all_reduce: {time_frac:.5}")
+
+        cleanup()
+
+
+def cleanup():
+    dist.destroy_process_group()
 
 
 # You can change the function and variable names as needed.
