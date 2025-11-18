@@ -81,15 +81,13 @@ def run_flat_worker(rank, model, data, optimizer, num_iters, num_warmup, iterati
         flattened_tensors /= world_size
 
         for p, sh, sz in zip(model.parameters(), shapes, sizes):
-            size = sz.pop(0)
-            shape = sh.pop(0)
             if p.grad is not None:
-                t = flattened_tensors[:size].view(shape)
-                p.grad.data = t
-                flattened_tensors = flattened_tensors[size:]
+                t = flattened_tensors[:sz].view(sh)
+                p.grad.data = t.detatch().clone()
+                flattened_tensors = flattened_tensors[sz:]
             else:
-                assert size == 0
-                assert shape == 0
+                assert sz == 0
+                assert sh == 0
 
         torch.cuda.synchronize()
         t2 = time.time()
