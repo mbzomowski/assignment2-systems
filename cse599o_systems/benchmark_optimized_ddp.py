@@ -97,10 +97,10 @@ def run_flat_worker(rank, model, data, optimizer, num_iters, num_warmup, iterati
         torch.cuda.synchronize()
         t3 = time.time()
         total_time = t3 - t0
-        time_frac = (t2 - t1) / total_time
+        comm_time = t2 - t1
 
         if rank == 0:
-            print(f"\nIteration {_}\nTotal training time: {total_time:.5}\nFraction of time spent on all_reduce: {time_frac:.5}")
+            print(f"\nIteration {_}\nTotal training time: {total_time:.5}\nCommunication Time: {comm_time:.5}")
 
     cleanup()
 
