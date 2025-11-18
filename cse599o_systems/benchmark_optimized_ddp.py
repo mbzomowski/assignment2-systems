@@ -29,7 +29,7 @@ from cse599o_basics.transformerlm import TransformerLM
 # Any other necessary imports can be added here.
 
 # Any necessary helper functions can be defined here.
-def run_flat_worker(rank, model, data, optimizer, num_iters, num_warmup, iteration_times, comm_times):
+def run_flat_worker(rank, model, data, optimizer, num_iters, num_warmup, iteration_times, comm_times, world_size):
     setup(rank, world_size)
 
     device = torch.device(f"cuda:{rank}")
@@ -130,7 +130,7 @@ def run_flat(model, data, optimizer, num_iters, num_warmup, iteration_times, com
     world_size = 2
     mp.spawn(
         run_flat_worker,
-        args=(model, data, optimizer, num_iters, num_warmup, iteration_times, comm_times),
+        args=(model, data, optimizer, num_iters, num_warmup, iteration_times, comm_times, world_size),
         nprocs=world_size,
         join=True,
     )
